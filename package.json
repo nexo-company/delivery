@@ -1,0 +1,20 @@
+{
+  "name": "delivery-mvp",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "apps/painel"
+  ],
+  "scripts": {
+    "postinstall": "npm run db:generate -w api",
+    "dev": "concurrently -n api,web,painel -c blue,green,magenta \"npm run dev --workspace=api\" \"npm run dev --workspace=web\" \"npm run dev --workspace=painel\"",
+    "dev:api": "npm run dev --workspace=api",
+    "db:migrate": "npm run db:migrate --workspace=api",
+    "db:seed": "npm run db:seed --workspace=api",
+    "build": "npm run build --workspace=api && npm run build --workspace=web && npm run build --workspace=painel"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

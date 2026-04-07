@@ -1,0 +1,102 @@
+// MVP: SQLite. Para produção, troque para provider "postgresql" e ajuste DATABASE_URL.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum DeliveryType {
+  retirada
+  entrega
+}
+
+enum PaymentMethod {
+  pix
+  cartao
+  dinheiro
+}
+
+enum PaymentStatus {
+  pendente
+  pago
+  falhou
+}
+
+enum OrderStatus {
+  pendente
+  confirmado
+  em_preparo
+  pronto
+  entregue
+  cancelado
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  active   Boolean   @default(true)
+  products Product[]
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Decimal
+  imageUrl    String?
+  active      Boolean     @default(true)
+  orderItems  OrderItem[]
+}
+
+model Customer {
+  id     String  @id @default(cuid())
+  name   String
+  phone  String
+  orders Order[]
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deliveryType  DeliveryType
+  address       String?
+  notes         String?
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(pendente)
+  orderStatus   OrderStatus   @default(pendente)
+  subtotal      Decimal
+  deliveryFee   Decimal       @default(0)
+  total         Decimal
+  createdAt     DateTime      @default(now())
+  items         OrderItem[]
+  payments      Payment[]
+}
+
+model OrderItem {
+  id                  String   @id @default(cuid())
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String?
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productNameSnapshot String
+  unitPrice           Decimal
+  quantity            Int
+  notes               String?
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method        PaymentMethod
+  status        PaymentStatus @default(pendente)
+  amount        Decimal
+  transactionId String?
+  createdAt     DateTime      @default(now())
+}

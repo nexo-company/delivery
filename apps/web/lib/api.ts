@@ -1,7 +1,16 @@
-/** URL base da API (definir em .env.local para produção) */
+/** URL base da API (obrigatório em produção: NEXT_PUBLIC_API_URL na Railway/Vercel) */
 export function apiBase(): string {
   const u = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   return u.replace(/\/$/, "");
+}
+
+/** No browser: site público mas API ainda em localhost = variável de deploy faltando */
+export function isPublicDeployMissingApiUrl(): boolean {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname;
+  if (h === "localhost" || h === "127.0.0.1") return false;
+  const b = apiBase();
+  return b.includes("localhost") || b.includes("127.0.0.1");
 }
 
 export type ApiProduct = {

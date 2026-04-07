@@ -5,6 +5,7 @@ import {
   apiBase,
   createOrder,
   fetchMenu,
+  isPublicDeployMissingApiUrl,
   type ApiCategory,
   type ApiProduct,
   type CreateOrderPayload,
@@ -40,7 +41,13 @@ export default function MenuClient() {
   useEffect(() => {
     fetchMenu()
       .then(setMenu)
-      .catch(() => setLoadErr("Não foi possível carregar o cardápio. A API está rodando?"));
+      .catch(() =>
+        setLoadErr(
+          isPublicDeployMissingApiUrl()
+            ? "Configuração de produção: a API não foi definida."
+            : "Não foi possível carregar o cardápio. A API está rodando?",
+        ),
+      );
   }, []);
 
   const addProduct = useCallback((p: ApiProduct) => {
@@ -113,10 +120,24 @@ export default function MenuClient() {
   }
 
   if (loadErr) {
+    const missing = isPublicDeployMissingApiUrl();
     return (
       <div className="container">
         <p style={{ color: "#f87171" }}>{loadErr}</p>
-        <p className="sub">Verifique se a API está em {apiBase()}</p>
+        {missing ? (
+          <>
+            <p className="sub">
+              No serviço <strong>web</strong> da Railway, em <strong>Variables</strong>, crie{" "}
+              <code style={{ color: "var(--accent)" }}>NEXT_PUBLIC_API_URL</code> com a URL pública da sua API
+              (ex.: <code>https://api-production-xxxx.up.railway.app</code>), sem barra no final.
+            </p>
+            <p className="sub">
+              Salve e faça <strong>Redeploy</strong> do web — o Next embute essa variável no <strong>build</strong>.
+            </p>
+          </>
+        ) : (
+          <p className="sub">Verifique se a API está em {apiBase()}</p>
+        )}
       </div>
     );
   }

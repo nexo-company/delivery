@@ -1,10 +1,56 @@
 # Colocar o MVP online (apresentação ao cliente)
 
-O Socket.IO precisa ficar no **mesmo servidor sempre ligado** que a API REST. Por isso a API não roda bem em “serverless puro”; os frontends (Next.js) sim — no **Vercel**.
+O Socket.IO precisa ficar no **mesmo processo sempre ligado** que a API REST. Você pode hospedar **tudo na Railway** (três serviços no mesmo projeto) **ou** API na Railway + Next no Vercel.
 
 ---
 
-## Opção 1 — Mais rápida: túnel (notebook como servidor)
+## Opção recomendada: tudo na Railway (API + site + painel)
+
+Um **projeto** na [Railway](https://railway.app/) com **3 serviços**, todos apontando para o **mesmo repositório Git**.
+
+| Serviço | Raiz do repo | Build | Start | Observação |
+|---------|----------------|-------|-------|------------|
+| **api** | `apps/api` | (Dockerfile ou Nixpacks) | já definido na imagem / `node dist/index.js` | Volume + SQLite ou Postgres |
+| **web** | `.` (raiz) | `npm ci && npm run build -w web` | `npm run start -w web` | Usa `PORT` da Railway |
+| **painel** | `.` (raiz) | `npm ci && npm run build -w painel` | `npm run start -w painel` | Idem |
+
+### Passos resumidos
+
+1. **Projeto** → *New Project* → *Deploy from GitHub repo* → escolha `nexo-company/delivery` (ou o seu).
+2. **Serviço 1 — API**  
+   - *Settings* → **Root Directory** = `apps/api`.  
+   - Deploy com **Dockerfile** (já existe em `apps/api/Dockerfile`) ou Nixpacks.  
+   - **Volume**: mount path `/data`, variável `DATABASE_URL=file:/data/dev.db`.  
+   - Depois do primeiro deploy, rode **uma vez**: `npx prisma db seed` (aba *Deployments* → *Run command* ou CLI).
+3. **Serviço 2 — Web**  
+   - *Add service* → *GitHub repo* (mesmo repo).  
+   - **Root Directory** = `.` (vazio / raiz do monorepo).  
+   - **Build Command**: `npm ci && npm run build -w web`  
+   - **Start Command**: `npm run start -w web`  
+   - **Variables**: `NEXT_PUBLIC_API_URL` = URL **https** pública da API (ex.: `https://api-production-xxxx.up.railway.app`), **sem** barra no final.  
+   - O `next start` já usa a variável `PORT` que a Railway define.  
+   - **Obrigatório:** sem isso o site tenta `http://localhost:4000` no **navegador do cliente** e o cardápio não carrega. Depois de criar/alterar a variável, faça **Redeploy** do serviço web (o Next grava `NEXT_PUBLIC_*` no build).
+4. **Serviço 3 — Painel**  
+   - Igual ao web, com:  
+   - **Build**: `npm ci && npm run build -w painel`  
+   - **Start**: `npm run start -w painel`  
+   - **Variables**: mesmo `NEXT_PUBLIC_API_URL` da API.
+5. **CORS na API**  
+   - Variável `CORS_ORIGIN` com as URLs **https** dos dois frontends na Railway, separadas por vírgula, por exemplo:  
+   - `https://web-production-xxxx.up.railway.app,https://painel-production-xxxx.up.railway.app`  
+   - Depois de alterar CORS, faça **redeploy** da API.
+
+**Dica:** faça o deploy da **API primeiro**, copie a URL pública, configure `NEXT_PUBLIC_API_URL` nos builds do **web** e **painel**, e por último ajuste `CORS_ORIGIN` na API e redeploy.
+
+Na Railway dá para referenciar variáveis de outro serviço (ex.: domínio público); se usar isso, confira na documentação atual da Railway porque o `NEXT_PUBLIC_*` é embutido no **build** do Next — o valor precisa existir no momento do build.
+
+### Por que três serviços?
+
+Cada app é um processo Node separado (porta definida pela Railway). É o modelo natural da plataforma; continua “tudo na Railway”, só não é um único container com os três juntos (o que também seria possível com Docker Compose em um VPS, mas não é o padrão da Railway).
+
+---
+
+## Opção — Túnel (notebook como servidor)
 
 Para uma demo **hoje**, sem publicar em cloud:
 
@@ -16,7 +62,7 @@ Para uma demo **hoje**, sem publicar em cloud:
 
 ---
 
-## Opção 2 — Recomendada para apresentação: API na Railway + sites no Vercel
+## Opção — API na Railway + sites no Vercel
 
 ### Visão
 

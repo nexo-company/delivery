@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiBase, fetchPanelOrders, patchOrderStatus, type PanelOrder } from "@/lib/api";
+import {
+  apiBase,
+  fetchPanelOrders,
+  PanelFetchError,
+  patchOrderStatus,
+  type PanelOrder,
+} from "@/lib/api";
 import { printOrderThermal } from "@/lib/print";
 import { connectPanelSocket } from "@/lib/socket";
 import { playNewOrderChime } from "@/lib/sound";
@@ -66,9 +72,17 @@ export default function PanelClient() {
   const [connected, setConnected] = useState(false);
 
   const refresh = useCallback(() => {
+    setErr(null);
     fetchPanelOrders()
       .then(setOrders)
-      .catch(() => setErr("API indisponível. Rode a API em " + apiBase()));
+      .catch((e: unknown) => {
+        const base = apiBase();
+        if (e instanceof PanelFetchError) {
+          setErr(`${e.message} — ${base}`);
+          return;
+        }
+        setErr(`Não foi possível falar com a API — ${base}`);
+      });
   }, []);
 
   useEffect(() => {
@@ -107,9 +121,34 @@ export default function PanelClient() {
   }
 
   if (err && orders.length === 0) {
+    const api = apiBase();
     return (
-      <div className="empty">
-        <p>{err}</p>
+      <div className="empty" style={{ maxWidth: 560, margin: "0 auto", textAlign: "left" }}>
+        <p style={{ color: "var(--red)", marginBottom: "1rem" }}>{err}</p>
+        <p className="sub" style={{ marginBottom: "0.75rem" }}>
+          <strong>Checklist rápido</strong>
+        </p>
+        <ul className="sub" style={{ lineHeight: 1.6, paddingLeft: "1.25rem" }}>
+          <li>
+            Abra em nova aba:{" "}
+            <a href={`${api}/health`} target="_blank" rel="noreferrer" style={{ color: "var(--blue)" }}>
+              {api}/health
+            </a>{" "}
+            — deve mostrar <code>{"{ \"ok\": true }"}</code>. Se não abrir, a API caiu no deploy (veja logs na Railway).
+          </li>
+          <li>
+            Se o health ok, mas o painel falha: é quase sempre <strong>CORS</strong>. No serviço da <strong>API</strong>, em
+            Variables, inclua as URLs exatas do site e do painel em <code>CORS_ORIGIN</code> (https, sem barra final), ou
+            ative <code>CORS_ALLOW_RAILWAY_APP=1</code> para aceitar qualquer <code>*.up.railway.app</code> (bom para
+            demo).
+          </li>
+          <li>
+            Depois de mudar variáveis da API, faça <strong>Redeploy</strong> do serviço da API.
+          </li>
+        </ul>
+        <button type="button" className="btn btn-primary" style={{ marginTop: "1.25rem" }} onClick={() => refresh()}>
+          Tentar de novo
+        </button>
       </div>
     );
   }

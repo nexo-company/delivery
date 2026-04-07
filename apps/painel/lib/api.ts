@@ -23,10 +23,29 @@ export type PanelOrder = {
   }>;
 };
 
+export class PanelFetchError extends Error {
+  constructor(
+    message: string,
+    readonly kind: "network" | "http" | "cors",
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "PanelFetchError";
+  }
+}
+
 export async function fetchPanelOrders(): Promise<PanelOrder[]> {
-  const r = await fetch(`${apiBase()}/orders/panel`, { cache: "no-store" });
-  if (!r.ok) throw new Error("Falha ao carregar pedidos");
-  return r.json();
+  const url = `${apiBase()}/orders/panel`;
+  let r: Response;
+  try {
+    r = await fetch(url, { cache: "no-store" });
+  } catch {
+    throw new PanelFetchError("Falha de rede ao chamar a API.", "network");
+  }
+  if (!r.ok) {
+    throw new PanelFetchError(`API respondeu ${r.status} em /orders/panel`, "http", r.status);
+  }
+  return r.json() as Promise<PanelOrder[]>;
 }
 
 export async function patchOrderStatus(id: string, orderStatus: PanelOrder["orderStatus"]) {
